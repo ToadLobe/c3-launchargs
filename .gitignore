@@ -11,3 +11,8 @@ extension/Release/
 *.user
 xcuserdata/
 DerivedData/
+extension/Win32/
+extension/bin/
+extension/Win32/
+extension/bin/
+extension/WrapperExtension/

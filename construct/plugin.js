@@ -13,11 +13,11 @@ const PLUGIN_CATEGORY = "platform-specific";
 // Native binaries. Set built: true only once the file exists in this folder. The build
 // fails if a built: true binary is missing, and warns if a present one is built: false.
 const WRAPPER_EXTENSIONS = [
-	{ filename: "LaunchArgs_x64.ext.dll",   platform: "windows-x64", built: false },
-	{ filename: "LaunchArgs_x86.ext.dll",   platform: "windows-x86", built: false },
+	{ filename: "LaunchArgs_x64.ext.dll",   platform: "windows-x64", built: true },
+	{ filename: "LaunchArgs_x86.ext.dll",   platform: "windows-x86", built: true },
 	{ filename: "LaunchArgs_arm64.ext.dll", platform: "windows-arm64", built: false },
 	{ filename: "launchargs_x64.ext.so",    platform: "linux-x64", built: false },
-	{ filename: "launchargs.ext.dylib",     platform: "macos-universal", built: false }
+	{ filename: "launchargs.ext.dylib",     platform: "macos-universal", built: true }
 ];
 
 const PLUGIN_CLASS = SDK.Plugins.PabloGalbraith_LaunchArgs = class PabloGalbraith_LaunchArgsPlugin extends SDK.IPluginBase
@@ -35,6 +35,7 @@ const PLUGIN_CLASS = SDK.Plugins.PabloGalbraith_LaunchArgs = class PabloGalbrait
 		this._info.SetHelpUrl(globalThis.lang(".help-url"));
 		this._info.SetIsSingleGlobal(true);
 		this._info.SetRuntimeModuleMainScript("c3runtime/main.js");
+		this._info.SetC3RuntimeScripts(["c3runtime/main.js"]);
 		// The runtime instance is the script interface; the build generates its definitions from c3runtime/instance.ts
 		this._info.SetScriptInterfaceNames({ instance: "ILaunchArgsInstance" });
 		this._info.SetTypeScriptDefinitionFiles(["c3runtime/ILaunchArgsInstance.d.ts"]);
@@ -51,9 +52,8 @@ const PLUGIN_CLASS = SDK.Plugins.PabloGalbraith_LaunchArgs = class PabloGalbrait
 
 		SDK.Lang.PopContext();
 
-		// TODO(windows agent): confirm the exact platform strings accepted by AddFileDependency
-		// (the SDK sample uses "windows-x86", "windows-x64", "windows-arm64", "linux-x64";
-		// the macOS value is unverified).
+		// Platform strings are from the addon SDK's "Specifying dependencies" reference: windows-x86,
+		// windows-x64, windows-arm64, macos-universal, linux-x64, linux-arm, linux-arm64.
 		for (const ext of WRAPPER_EXTENSIONS)
 		{
 			if (!ext.built)

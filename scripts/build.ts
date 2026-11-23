@@ -221,10 +221,13 @@ function pack(id: string, version: string): string {
 	const output = join(DIST, `${id}-${version}.c3addon`);
 	rmSync(output, { force: true });
 	if (process.platform === "win32") {
-		// Windows 10+ ships bsdtar; -a picks the format from the extension, so write .zip and rename
+		// Windows 10+ ships bsdtar; -a picks the format from the extension, so write .zip and rename.
+		// Call System32's copy by path: Git Bash puts GNU tar first on PATH, which can't write zips and
+		// reads "C:" in an absolute path as a remote host. The zip path is relative for the same reason.
 		const zip = `${output}.zip`;
 		rmSync(zip, { force: true });
-		execFileSync("tar", ["-a", "-c", "-f", zip, "*"], { cwd: ADDON, shell: true });
+		const tar = join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe");
+		execFileSync(tar, ["-a", "-c", "-f", relative(ADDON, zip), ...readdirSync(ADDON)], { cwd: ADDON });
 		renameSync(zip, output);
 	} else {
 		execFileSync("zip", ["-r", "-X", "-q", output, "."], { cwd: ADDON });
