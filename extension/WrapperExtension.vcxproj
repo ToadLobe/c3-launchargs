@@ -100,29 +100,29 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>LaunchArgs_x64.ext</TargetName>
-    <OutDir>$(SolutionDir)..\construct-plugin\</OutDir>
+    <OutDir>$(SolutionDir)..\construct\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
     <TargetName>LaunchArgs_arm64.ext</TargetName>
-    <OutDir>$(SolutionDir)..\construct-plugin\</OutDir>
+    <OutDir>$(SolutionDir)..\construct\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <TargetName>LaunchArgs_x86.ext</TargetName>
-    <OutDir>$(SolutionDir)..\construct-plugin\</OutDir>
+    <OutDir>$(SolutionDir)..\construct\</OutDir>
     <IntDir>$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <TargetName>LaunchArgs_x86.ext</TargetName>
-    <OutDir>$(SolutionDir)..\construct-plugin\</OutDir>
+    <OutDir>$(SolutionDir)..\construct\</OutDir>
     <IntDir>$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <TargetName>LaunchArgs_x64.ext</TargetName>
-    <OutDir>$(SolutionDir)..\construct-plugin\</OutDir>
+    <OutDir>$(SolutionDir)..\construct\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <TargetName>LaunchArgs_arm64.ext</TargetName>
-    <OutDir>$(SolutionDir)..\construct-plugin\</OutDir>
+    <OutDir>$(SolutionDir)..\construct\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

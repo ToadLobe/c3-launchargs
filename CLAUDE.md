@@ -21,7 +21,7 @@ The plugin's JavaScript runs in the web sandbox and can't see the host process. 
 (`.ext.dll` / `.ext.dylib` / `.ext.so`) reads argv and returns it on one async `get-args` message
 at startup. The bridge only carries string, number and boolean values, so the reply is flattened to
 `argc`, `arg0`…`argN-1`, `exe` and `raw`. All parsing happens in JS
-([argparse.js](construct-plugin/c3runtime/argparse.js)).
+([argparse.js](construct/c3runtime/argparse.js)).
 
 | Platform | Source of argv | Status |
 |---|---|---|
@@ -54,12 +54,13 @@ at startup. The bridge only carries string, number and boolean values, so the re
 ## Layout
 
 ```
-construct-plugin/   the addon (zip its contents to make a .c3addon)
-extension/          native wrapper extension (VS solution, Xcode project, CMake for Linux)
-scripts/            build-macos.sh
-tests/              parser unit tests (npm test)
-schemas/            Construct addon JSON schemas, copied from Scirra's SDK
-docs/               agent handoff notes
+construct/      the addon source (`npm run build` packages it)
+extension/      native wrapper extension (VS solution, Xcode project, CMake for Linux)
+scripts/        build.js (addon packaging), build-macos.sh
+dist/           build output, gitignored
+tests/          parser unit tests (npm test)
+schemas/        Construct addon JSON schemas, copied from Scirra's SDK
+docs/           agent handoff notes
 ```
 
 ## Building
@@ -69,10 +70,13 @@ docs/               agent handoff notes
 - **Windows:** open `extension/WrapperExtension.sln` in Visual Studio 2022, build Release x64 (and x86 / ARM64 if wanted). Output is `LaunchArgs_<arch>.ext.dll`
 - **Linux:** `cmake -S extension -B build && cmake --build build`, producing `build/lib/launchargs_x64.ext.so`
 
-Copy each binary into `construct-plugin/`, list it in `addon.json` `file-list`, and set `built: true` for it in
-[plugin.js](construct-plugin/plugin.js).
+Copy each binary into `construct/` and set `built: true` for it in
+[plugin.js](construct/plugin.js).
 
-**Packaging:** from inside `construct-plugin/`, run `tar -a -cf ../dist/LaunchArgs.c3addon *` (Windows 10+ or macOS) or `zip -r ../dist/LaunchArgs.c3addon .`.
+**Packaging:** `npm run build` copies `construct/` to `dist/addon/` and zips it as
+`dist/PabloGalbraith_LaunchArgs-<version>.c3addon`. It regenerates `addon.json` `file-list` from the files present,
+so there's no need to edit it by hand. It warns when a binary is present but `built: false`, and fails when
+`built: true` names a missing binary.
 
 The C++ is based on Scirra's `wrapperExtensionPlugin` sample from the
 [Construct Addon SDK](https://github.com/Scirra/Construct-Addon-SDK).

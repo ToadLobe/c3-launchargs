@@ -4,6 +4,7 @@
 	"description": "Construct 3 wrapper extension plugin that exposes the process command line to projects.",
 	"type": "module",
 	"scripts": {
+		"build": "node scripts/build.js",
 		"test": "node --test tests/"
 	},
 	"license": "MIT"
