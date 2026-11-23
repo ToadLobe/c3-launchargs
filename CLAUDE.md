@@ -3,7 +3,7 @@
 A Construct 3 plugin that reads the command-line arguments an exported desktop game was launched with.
 
 ```
-MyGame.exe --level=3 --fullscreen save1.json
+MyGame.exe save1.json --level=3 --fullscreen
 ```
 
 ```
@@ -25,10 +25,23 @@ at startup. The bridge only carries string, number and boolean values, so the re
 
 | Platform | Source of argv | Status |
 |---|---|---|
-| Windows WebView2 | `GetCommandLineW()` + `CommandLineToArgvW()` | Written, not yet built |
-| macOS WKWebView | `NSProcessInfo.arguments` (drops `-psn_*`) | Builds; harness-tested |
+| Windows WebView2 | `GetCommandLineW()` + `CommandLineToArgvW()` | x64 verified in a real export; x86 harness-tested; ARM64 not built |
+| macOS WKWebView | `NSProcessInfo.arguments` (drops `-psn_*`) | Builds; harness-tested; not tried in an export |
 | Linux CEF | `/proc/self/cmdline` | Written, not yet built |
 | Browser preview | URL query (`?level=3&fullscreen`), if the property is on | Untested |
+
+**Windows notes** (verified with a WebView2 x64 export, worker mode `auto`, minify off):
+
+- The wrapper doesn't add or strip arguments. The extension DLL loads into the game's own `.exe`, so
+  `GetCommandLineW()` is exactly what the player launched it with. The Chromium switches the wrapper uses
+  (`chromium-args` in the export's `package.json`) and `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` go to the separate
+  `msedgewebview2.exe` processes and never show up. No filtering is needed.
+- `IApplication` (wrapper SDK v2, which this export uses) has no command-line accessor, so reading it from the OS
+  stays the approach.
+- Non-ASCII arguments round-trip as UTF-8 (`--name=Zoë`).
+- The DLLs link the CRT statically, so they need nothing beyond `KERNEL32` and `SHELL32`.
+- Testing tip: a Text object with BBCode on (the default) hides anything in `[...]`, including `JSON.stringify` of an
+  array. Wrap test output in `<...>` or `join(" | ")` instead.
 
 ## ACEs
 
@@ -104,7 +117,10 @@ docs/           agent handoff notes
 - **Tests:** `npm test` (no dependencies needed)
 - **Type check:** `npm run check` (`construct/`, `scripts/` and `tests/`, each with its own `tsconfig.json`)
 - **macOS:** `scripts/build-macos.sh`
-- **Windows:** open `extension/WrapperExtension.sln` in Visual Studio 2022, build Release x64 (and x86 / ARM64 if wanted). Output is `LaunchArgs_<arch>.ext.dll`
+- **Windows:** open `extension/WrapperExtension.sln` in Visual Studio 2022 (Build Tools are enough), build Release
+  x64 and x86 (solution platform `x86`, not `Win32`); ARM64 needs the ARM64 MSVC toolset. From a shell:
+  `MSBuild extension/WrapperExtension.sln -p:Configuration=Release -p:Platform=x64`. Builds go to
+  `extension/bin/`, and Release copies `LaunchArgs_<arch>.ext.dll` (only) into `construct/`
 - **Linux:** `cmake -S extension -B build && cmake --build build`, producing `build/lib/launchargs_x64.ext.so`
 
 Copy each binary into `construct/` and set `built: true` for it in
@@ -118,8 +134,16 @@ so the source `addon.json` has none. It warns when a binary is present but `buil
 `built: true` names a missing binary.
 
 `min-construct-version` is r450, matching the Ribbit addon this setup follows; the TypeScript definition
-APIs (`SetScriptInterfaceNames`, `SetTypeScriptDefinitionFiles`) need a recent release. Not yet confirmed in
-the editor: that Construct picks up the `.d.ts`, and that Advanced minification keeps the public member names.
+APIs (`SetScriptInterfaceNames`, `SetTypeScriptDefinitionFiles`) need a recent release. The packaged `.c3addon`
+installs and exports in the editor, and a TypeScript project script calling `hasFlag`, `getValue`, `args` and the
+rest works in an unminified export. Not yet confirmed: that Advanced minification keeps the public member names.
+On Windows the zip is made with System32's `tar.exe` (bsdtar), called by path because Git Bash's GNU `tar` can't
+write zips.
+
+The test project is [tests/project.c3p](tests/project.c3p): a TypeScript project whose one Text object shows
+`Source`, `ArgCount`, `RawCommandLine`, `ExecutablePath`, `ArgValue`s, `PositionalAt(0)` and every `ArgAt(i)`. Its
+Text has BBCode on, which hides the `[...]`-wrapped `ArgAt` values (turn BBCode off to see them), and its Repeat
+event runs every tick, so only the first block of `ArgAt` lines matters.
 
 The C++ is based on Scirra's `wrapperExtensionPlugin` sample from the
 [Construct Addon SDK](https://github.com/Scirra/Construct-Addon-SDK).

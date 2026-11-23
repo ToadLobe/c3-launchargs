@@ -132,8 +132,8 @@ static std::string JoinArgs(const std::vector<std::string>& args)
 
 void GetProcessArgs(std::vector<std::string>& args, std::string& raw)
 {
-	// TODO(windows agent): check whether the WebView2 wrapper adds or strips any arguments
-	// (e.g. Chromium switches) before they reach GetCommandLineW().
+	// The extension runs in the game's own .exe, so this is the command line as launched.
+	// The wrapper's Chromium switches go to the msedgewebview2.exe processes, not here.
 	LPWSTR cmdLine = GetCommandLineW();
 	raw = WideToUtf8(cmdLine);
 
