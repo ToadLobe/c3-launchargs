@@ -1,7 +1,7 @@
 // Run with: npm test   (uses Node's built-in test runner, no dependencies)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseArgs, normalizeName, queryStringToArgs } from "../construct/c3runtime/argparse.ts";
+import { parseArgs, normalizeName, queryStringToArgs, dropHostSwitches, chromiumParseOrder } from "../construct/c3runtime/argparse.ts";
 
 test("empty input", () => {
 	const r = parseArgs([]);
@@ -97,4 +97,63 @@ test("queryStringToArgs converts a URL query into argv form", () => {
 		["--level=3", "--fullscreen", "--name=Bob Smith", "-v"]);
 	assert.deepEqual(queryStringToArgs(""), []);
 	assert.deepEqual(queryStringToArgs("?"), []);
+});
+
+// Linux CEF: the reported list is Chromium's global command line (switches first, host
+// switches added after the user's). The title is that list without the host's switches, joined
+// by spaces; the extension sends the part after the executable path.
+const HOST = ["--no-sandbox", "--lang=en-US", "--remote-debugging-port=9222", "--ozone-platform=wayland"];
+
+test("dropHostSwitches removes switches added after launch", () => {
+	const args = ["--level=3", "--fullscreen", ...HOST, "save1.json"];
+	const title = " --level=3 --fullscreen save1.json";
+	assert.deepEqual(dropHostSwitches(args, title), ["--level=3", "--fullscreen", "save1.json"]);
+});
+
+test("dropHostSwitches keeps arguments containing spaces, empty arguments and UTF-8", () => {
+	const args = ["--name", "-abc", ...HOST, "save1.json", "two words", "", "--", "--literal", "Zoë"];
+	const title = " --name -abc save1.json two words  -- --literal Zoë";
+	assert.deepEqual(dropHostSwitches(args, title),
+		["--name", "-abc", "save1.json", "two words", "", "--", "--literal", "Zoë"]);
+});
+
+test("dropHostSwitches tells a lone empty argument from none", () => {
+	assert.deepEqual(dropHostSwitches(["", ...HOST], " "), [""]);
+	assert.deepEqual(dropHostSwitches([...HOST], " "), null);
+});
+
+test("dropHostSwitches with no user arguments", () => {
+	assert.deepEqual(dropHostSwitches([...HOST], ""), []);
+});
+
+test("dropHostSwitches keeps a user switch that the host also adds", () => {
+	const args = ["--no-sandbox", ...HOST];
+	assert.deepEqual(dropHostSwitches(args, " --no-sandbox"), ["--no-sandbox"]);
+});
+
+test("dropHostSwitches returns null when the title doesn't match", () => {
+	assert.equal(dropHostSwitches(["--a"], " --b"), null);
+	assert.equal(dropHostSwitches(["--a"], "--a"), null);
+	assert.equal(dropHostSwitches([], " --a"), null);
+});
+
+test("chromiumParseOrder marks where Chromium's positionals start", () => {
+	// Launched as: save1.json --fullscreen. Chromium moved the switch first.
+	const args = chromiumParseOrder(["--fullscreen", "save1.json"]);
+	assert.deepEqual(args, ["--fullscreen", "--", "save1.json"]);
+	const r = parseArgs(args);
+	assert.deepEqual(r.options.get("fullscreen"), [null]);
+	assert.deepEqual(r.positionals, ["save1.json"]);
+});
+
+test("chromiumParseOrder treats negative numbers as switches, like Chromium", () => {
+	assert.deepEqual(chromiumParseOrder(["--offset", "-5"]), ["--offset", "-5"]);
+	assert.deepEqual(parseArgs(chromiumParseOrder(["--offset", "-5"])).options.get("offset"), ["-5"]);
+});
+
+test("chromiumParseOrder leaves an existing -- and a lone - alone", () => {
+	assert.deepEqual(chromiumParseOrder(["--a", "--", "--literal"]), ["--a", "--", "--literal"]);
+	assert.deepEqual(chromiumParseOrder(["--a", "-"]), ["--a", "--", "-"]);
+	assert.deepEqual(chromiumParseOrder([]), []);
+	assert.deepEqual(chromiumParseOrder(["--a"]), ["--a"]);
 });

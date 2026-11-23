@@ -20,14 +20,14 @@ The plugin's runtime code runs in the web sandbox and can't see the host process
 [wrapper extension](https://www.construct.net/en/make-games/manuals/addon-sdk/guide/wrapper-extensions)
 (`.ext.dll` / `.ext.dylib` / `.ext.so`) reads argv and returns it on one async `get-args` message
 at startup. The bridge only carries string, number and boolean values, so the reply is flattened to
-`argc`, `arg0`…`argN-1`, `exe` and `raw`. All parsing happens in TypeScript
+`argc`, `arg0`…`argN-1`, `exe` and `raw`, plus `titleArgs` on Linux (see below). All parsing happens in TypeScript
 ([argparse.ts](construct/c3runtime/argparse.ts)).
 
 | Platform | Source of argv | Status |
 |---|---|---|
 | Windows WebView2 | `GetCommandLineW()` + `CommandLineToArgvW()` | x64 verified in a real export; x86 harness-tested; ARM64 not built |
 | macOS WKWebView | `NSProcessInfo.arguments` (drops `-psn_*`) | Builds; harness-tested; not tried in an export |
-| Linux CEF | `/proc/self/cmdline` | Written, not yet built |
+| Linux CEF | CEF's global command line (`libcef.so`), filtered against the process title | x64 verified in a real export (CEF 147) |
 | Browser preview | URL query (`?level=3&fullscreen`), if the property is on | Untested |
 
 **Windows notes** (verified with a WebView2 x64 export, worker mode `auto`, minify off):
@@ -42,6 +42,32 @@ at startup. The bridge only carries string, number and boolean values, so the re
 - The DLLs link the CRT statically, so they need nothing beyond `KERNEL32` and `SHELL32`.
 - Testing tip: a Text object with BBCode on (the default) hides anything in `[...]`, including `JSON.stringify` of an
   array. Wrap test output in `<...>` or `join(" | ")` instead.
+
+**Linux notes** (verified with a Linux x64 CEF export, CEF 147, minify off, on SteamOS/KDE Wayland):
+
+- The extension runs in the CEF browser (main) process, the game's own executable. Subprocesses have `--type=...`.
+- `/proc/self/cmdline` can't be used. The host's CEF rewrites the main process's argv in place to set its process
+  title (Chromium's `setproctitle`) before it loads the extension, so it reads as one space-joined string, and the
+  original argv strings are gone. Copying argv from an ELF constructor gets nothing either.
+- So the `.so` reads CEF's global command line (`cef_command_line_get_global()` → `get_argv`, looked up with
+  `dlsym` from the already loaded `libcef.so`). That keeps argument boundaries (`"two words"`, empty
+  arguments, UTF-8) but differs from what was launched in two ways:
+  - Chromium moves every switch (any token starting with `-`, including `-5`) ahead of the positionals, keeping
+    each group's order. `save1.json --fullscreen` arrives as `--fullscreen save1.json`.
+  - The host appends its own switches after the user's: `--no-sandbox --lang=en-US --remote-debugging-port=9222
+    --disable-features=... --autoplay-policy=... --flag-switches-begin --flag-switches-end
+    --ozone-platform=wayland --render-node-override=/dev/dri/renderD128`. They vary by machine and settings, so
+    they aren't filtered by name.
+- The process title is the user's arguments after reordering but before the host's switches, joined by spaces and
+  starting with the `/proc/self/exe` path (not `argv[0]`). The `.so` sends the part after that path as
+  `titleArgs`; `dropHostSwitches` in [argparse.ts](construct/c3runtime/argparse.ts) keeps the subsequence of CEF's
+  list that spells it out, and falls back to the unfiltered list if it can't match. `chromiumParseOrder` then puts a
+  `--` where Chromium's positionals start, so a switch never takes a positional as its value. `RawCommandLine` is
+  `exe` + `titleArgs` (reordered, unquoted).
+- Consequence for players: on Linux an option's value must be attached with `=` (`--level=3`), except negative
+  numbers (`--offset -5`). `--level 3` gives a bare `level` flag and a positional `3`.
+- No `chromium-args` in the export's `package.json`; the host adds the switches above itself.
+- `dist/linux-test.sh <export>/<game>` runs the five test cases and logs every game process's command line.
 
 ## ACEs
 
@@ -95,6 +121,8 @@ Rules for the public API:
 - Repeated options accumulate; `ArgValue` returns the last one. Names are case-sensitive
 
 `--flag word` is ambiguous: `word` becomes the flag's value. Use `--flag=` or put positionals first if that matters.
+On Linux, Chromium has already moved switches before positionals, so `word` is always a positional there (see the
+Linux notes); `--key=value` works the same everywhere.
 
 ## Layout
 
@@ -121,7 +149,15 @@ docs/           agent handoff notes
   x64 and x86 (solution platform `x86`, not `Win32`); ARM64 needs the ARM64 MSVC toolset. From a shell:
   `MSBuild extension/WrapperExtension.sln -p:Configuration=Release -p:Platform=x64`. Builds go to
   `extension/bin/`, and Release copies `LaunchArgs_<arch>.ext.dll` (only) into `construct/`
-- **Linux:** `cmake -S extension -B build && cmake --build build`, producing `build/lib/launchargs_x64.ext.so`
+- **Linux:** `cmake -S extension -B build && cmake --build build`, producing `build/lib/launchargs_x64.ext.so`.
+  On SteamOS (no host compiler) run it inside the Freedesktop SDK:
+  `flatpak run --filesystem=$PWD --command=sh org.freedesktop.Sdk//26.08 -c "cmake -S extension -B build && cmake --build build"`.
+  It defaults to Release and exports only `WrapperExtInit` (`extension/exports.map`). libstdc++ is linked
+  dynamically on purpose: a Release build needs only `GLIBC_2.34` (for `dlsym`; the exported game executable
+  itself already needs 2.34), `GLIBCXX_3.4.21` and `CXXABI_1.3.9`, while
+  `-static-libstdc++` pulls in the build machine's glibc symbol versions (`GLIBC_2.38` from a current SDK). A
+  Debug build needs `GLIBCXX_3.4.30`. Check after rebuilding with
+  `objdump -T build/lib/launchargs_x64.ext.so | grep -oE '(GLIBC|GLIBCXX|CXXABI)_[0-9.]+' | sort -uV`
 
 Copy each binary into `construct/` and set `built: true` for it in
 [plugin.js](construct/plugin.js).

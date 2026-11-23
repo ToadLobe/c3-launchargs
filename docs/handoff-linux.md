@@ -82,8 +82,6 @@ the Windows findings. This session's job is to make the **Linux CEF** path work 
    `domMessagingPlugin` SDK sample) or document it as DOM-mode-only.
 7. **Update CLAUDE.md**: the platform table (Linux row and anything learned), and the Linux build steps you
    confirmed.
-8. **Commit** on a branch with a clear message, including `construct/launchargs_x64.ext.so` but not `build/`. Ask
-   the user before pushing or merging.
 
 ## Constraints
 

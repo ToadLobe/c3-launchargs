@@ -16,7 +16,7 @@ const WRAPPER_EXTENSIONS = [
 	{ filename: "LaunchArgs_x64.ext.dll",   platform: "windows-x64", built: true },
 	{ filename: "LaunchArgs_x86.ext.dll",   platform: "windows-x86", built: true },
 	{ filename: "LaunchArgs_arm64.ext.dll", platform: "windows-arm64", built: false },
-	{ filename: "launchargs_x64.ext.so",    platform: "linux-x64", built: false },
+	{ filename: "launchargs_x64.ext.so",    platform: "linux-x64", built: true },
 	{ filename: "launchargs.ext.dylib",     platform: "macos-universal", built: true }
 ];
 

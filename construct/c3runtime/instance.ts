@@ -1,4 +1,4 @@
-import { normalizeName, type LaunchArgsOptionValues, parseArgs, type ParsedArgs, queryStringToArgs } from "./argparse.ts";
+import { chromiumParseOrder, dropHostSwitches, normalizeName, type LaunchArgsOptionValues, parseArgs, type ParsedArgs, queryStringToArgs } from "./argparse.ts";
 
 const C3 = globalThis.C3;
 
@@ -112,12 +112,22 @@ class ILaunchArgsInstance extends globalThis.ISDKInstanceBase {
 		const result = (await this._sendWrapperExtensionMessageAsync("get-args") ?? {}) as Record<string, unknown>;
 
 		const argc = Number(result["argc"]) || 0;
-		const args: string[] = [];
+		let args: string[] = [];
 		for (let i = 0; i < argc; ++i) args.push(String(result["arg" + i] ?? ""));
-
-		this._setArgs(args, "wrapper");
-		this.raw = String(result["raw"] ?? args.join(" "));
 		this.exe = String(result["exe"] ?? "");
+
+		// Linux CEF only: the list is Chromium's reordered command line plus the host's own
+		// switches, and "titleArgs" is the launched list before those were added (argparse.ts).
+		const titleArgs = result["titleArgs"];
+		if (typeof titleArgs === "string") {
+			const kept = dropHostSwitches(args, titleArgs);
+			if (kept) args = kept;
+			this._setArgs(args, "wrapper", chromiumParseOrder(args));
+			this.raw = kept ? this.exe + titleArgs : String(result["raw"] ?? args.join(" "));
+		} else {
+			this._setArgs(args, "wrapper");
+			this.raw = String(result["raw"] ?? args.join(" "));
+		}
 	}
 
 	private _loadFallback(): void {
@@ -140,10 +150,10 @@ class ILaunchArgsInstance extends globalThis.ISDKInstanceBase {
 		}
 	}
 
-	private _setArgs(args: string[], source: LaunchArgsSource): void {
+	private _setArgs(args: string[], source: LaunchArgsSource, parseInput: string[] = args): void {
 		this.argList = Object.freeze(args);
 		this.from = source;
-		this.parsed = parseArgs(args);
+		this.parsed = parseArgs(parseInput);
 		Object.freeze(this.parsed.positionals);
 	}
 }

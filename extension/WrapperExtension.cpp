@@ -8,8 +8,13 @@
 #elif __APPLE__
 #import <Foundation/Foundation.h>
 #elif __linux__
+#include <dlfcn.h>
+#include <unistd.h>
+#include <cstddef>
 #include <fstream>
 #include <iterator>
+
+static bool GetTitleArgs(std::string& titleArgs);
 #endif
 
 //////////////////////////////////////////////////////
@@ -86,6 +91,11 @@ void WrapperExtension::OnGetArgs(double asyncId)
 	std::map<std::string, ExtensionParameter> response;
 	response.emplace("exe", ExtensionParameter(args.empty() ? std::string() : args[0]));
 	response.emplace("raw", ExtensionParameter(raw));
+#ifdef __linux__
+	std::string titleArgs;
+	if (GetTitleArgs(titleArgs))
+		response.emplace("titleArgs", ExtensionParameter(titleArgs));
+#endif
 
 	size_t argc = args.empty() ? 0 : args.size() - 1;
 	response.emplace("argc", ExtensionParameter(static_cast<double>(argc)));
@@ -171,14 +181,92 @@ void GetProcessArgs(std::vector<std::string>& args, std::string& raw)
 
 #else	// Linux
 
+// The CEF browser process rewrites its argv in place to set the process title (Chromium's
+// setproctitle), before the wrapper loads this library. So /proc/self/cmdline then holds one
+// space-joined string, and the original argv strings are gone. The parsed copy survives in
+// CEF's global command line, which libcef.so (already loaded in this process) exposes through
+// its C API. Only the few C API symbols below are used, looked up at run time.
+namespace cef {
+	struct string_utf16 { char16_t* str; size_t length; void (*dtor)(char16_t*); };
+	struct string_utf8 { char* str; size_t length; void (*dtor)(char*); };
+	typedef void* string_list;
+
+	// Leading members of cef_command_line_t (include/capi/cef_command_line_capi.h), up to get_argv.
+	struct command_line {
+		size_t size;									// cef_base_ref_counted_t
+		void (*add_ref)(command_line*);
+		int (*release)(command_line*);
+		int (*has_one_ref)(command_line*);
+		int (*has_at_least_one_ref)(command_line*);
+		int (*is_valid)(command_line*);
+		int (*is_read_only)(command_line*);
+		command_line* (*copy)(command_line*);
+		void (*init_from_argv)(command_line*, int, const char* const*);
+		void (*init_from_string)(command_line*, const string_utf16*);
+		void (*reset)(command_line*);
+		void (*get_argv)(command_line*, string_list);
+	};
+}
+
+static bool GetCefArgs(std::vector<std::string>& args)
+{
+	auto sym = [](const char* name) { return dlsym(RTLD_DEFAULT, name); };
+	auto getGlobal = (cef::command_line* (*)())sym("cef_command_line_get_global");
+	auto listAlloc = (cef::string_list (*)())sym("cef_string_list_alloc");
+	auto listSize = (size_t (*)(cef::string_list))sym("cef_string_list_size");
+	auto listValue = (int (*)(cef::string_list, size_t, cef::string_utf16*))sym("cef_string_list_value");
+	auto listFree = (void (*)(cef::string_list))sym("cef_string_list_free");
+	auto toUtf8 = (int (*)(const char16_t*, size_t, cef::string_utf8*))sym("cef_string_utf16_to_utf8");
+	auto utf8Clear = (void (*)(cef::string_utf8*))sym("cef_string_utf8_clear");
+	if (!getGlobal || !listAlloc || !listSize || !listValue || !listFree || !toUtf8 || !utf8Clear)
+		return false;
+
+	cef::command_line* cl = getGlobal();
+	if (!cl)
+		return false;
+
+	bool ok = false;
+	if (cl->size >= offsetof(cef::command_line, get_argv) + sizeof(cl->get_argv) && cl->is_valid(cl))
+	{
+		cef::string_list list = listAlloc();
+		cl->get_argv(cl, list);
+		size_t n = listSize(list);
+		for (size_t i = 0; i < n; ++i)
+		{
+			cef::string_utf16 s16 = {};
+			cef::string_utf8 s8 = {};
+			if (listValue(list, i, &s16) && s16.str)
+				toUtf8(s16.str, s16.length, &s8);	// cef_string_list_value returns a view, no dtor
+			args.push_back(s8.str ? std::string(s8.str, s8.length) : std::string());
+			utf8Clear(&s8);
+		}
+		listFree(list);
+		ok = n > 0;
+	}
+	cl->release(cl);
+	return ok;
+}
+
+static bool g_UsedCefArgs = false;
+
+static std::string ReadProcCmdline()
+{
+	std::ifstream f("/proc/self/cmdline", std::ios::binary);
+	return std::string((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+}
+
 void GetProcessArgs(std::vector<std::string>& args, std::string& raw)
 {
-	// /proc/self/cmdline holds the arguments separated (and terminated) by NUL bytes.
-	// TODO(linux agent): confirm the extension runs in the CEF browser (main) process, so
-	// this is the game's command line and not a CEF subprocess's.
-	std::ifstream f("/proc/self/cmdline", std::ios::binary);
-	std::string data((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+	g_UsedCefArgs = GetCefArgs(args);
+	if (g_UsedCefArgs)
+	{
+		raw = JoinArgs(args);
+		return;
+	}
 
+	// Fallback: /proc/self/cmdline as argv, NUL-separated.
+	args.clear();
+	std::string data = ReadProcCmdline();
 	size_t start = 0;
 	while (start < data.size())
 	{
@@ -190,6 +278,34 @@ void GetProcessArgs(std::vector<std::string>& args, std::string& raw)
 	}
 
 	raw = JoinArgs(args);
+}
+
+// When the arguments came from CEF, gets the process title Chromium set at startup, after the
+// executable path: " <arg> <arg>..." (or "" for none). It's the launched arguments with
+// switches moved first, before the host appended its own switches, so the runtime uses it to
+// drop those (dropHostSwitches in argparse.ts). Chromium starts the title with the path from
+// /proc/self/exe, not argv[0].
+static bool GetTitleArgs(std::string& titleArgs)
+{
+	if (!g_UsedCefArgs)
+		return false;
+
+	char exe[4096];
+	ssize_t n = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
+	if (n <= 0)
+		return false;
+	std::string exePath(exe, static_cast<size_t>(n));
+
+	std::string title = ReadProcCmdline();
+	title.erase(title.find_last_not_of('\0') + 1);	// NUL padding after the title
+	for (char& c : title)
+		if (c == '\0')
+			c = ' ';	// not rewritten after all: argv is NUL-separated
+
+	if (title.compare(0, exePath.size(), exePath) != 0)
+		return false;
+	titleArgs = title.substr(exePath.size());
+	return true;
 }
 
 #endif

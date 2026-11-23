@@ -106,3 +106,49 @@ export function queryStringToArgs(search: string): string[] {
 	}
 	return result;
 }
+
+// MARK: Linux CEF
+// The CEF browser process rewrites its argv in place to set its process title, before the
+// wrapper extension loads. The extension then reads CEF's global command line instead, which
+// differs from what was launched in two ways: Chromium moves every switch ahead of the
+// positional arguments, and the host appends its own switches (--no-sandbox, --lang=...,
+// --ozone-platform=... and others that vary by machine) after the user's. The process title,
+// which the extension also sends, is the launched list after reordering but before the host's
+// additions, joined by spaces.
+
+/**
+ * Removes the switches the host added, by keeping the subsequence of `args` that spells out
+ * `titleArgs`: the process title after the executable path, i.e. " <arg> <arg>..." with a
+ * leading space before each argument ("" for none). Returns null if `titleArgs` can't be
+ * matched, in which case the caller should keep `args` as they are.
+ */
+export function dropHostSwitches(args: readonly string[], titleArgs: string): string[] | null {
+	const kept: string[] = [];
+	let pos = 0;
+	for (const arg of args) {
+		if (pos >= titleArgs.length) break;
+		const end = pos + 1 + arg.length;
+		if (titleArgs[pos] === " " && titleArgs.startsWith(arg, pos + 1) && (end === titleArgs.length || titleArgs[end] === " ")) {
+			kept.push(arg);
+			pos = end;
+		}
+	}
+
+	return pos === titleArgs.length ? kept : null;
+}
+
+/** Whether Chromium's command line parser treats `s` as a switch (on Linux: "-" or "--" plus a name). */
+function isChromiumSwitch(s: string): boolean {
+	return s.length > 1 && s.startsWith("-") && s !== "--";
+}
+
+/**
+ * Inserts "--" where Chromium's positional arguments start, so parseArgs doesn't give a
+ * positional to the switch before it as a value. Chromium has already moved switches ahead
+ * of positionals, so which switch a positional followed on the command line is unknown.
+ */
+export function chromiumParseOrder(args: readonly string[]): string[] {
+	const i = args.findIndex(a => !isChromiumSwitch(a));
+	if (i < 0 || args[i] === "--") return [...args];
+	return [...args.slice(0, i), "--", ...args.slice(i)];
+}
