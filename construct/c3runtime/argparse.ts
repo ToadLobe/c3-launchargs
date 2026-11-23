@@ -1,5 +1,6 @@
 // Pure command-line parsing logic. No Construct dependencies, so it can be unit tested
-// with Node (see tests/argparse.test.js).
+// with Node (see tests/argparse.test.ts). Keep it to erasable TypeScript syntax (no enums,
+// namespaces or parameter properties): Node runs it directly with type stripping.
 //
 // Rules:
 //   --key=value      option "key" with value "value" (everything after the first '=')
@@ -13,42 +14,45 @@
 //   anything else    positional
 // Repeated options accumulate their values in order. Names are case-sensitive.
 
+/** An option's values in the order given. A flag passed without a value contributes null. */
+export type LaunchArgsOptionValues = (string | null)[];
+
+export interface ParsedArgs {
+	/** Option name (without dashes) to its values. */
+	options: Map<string, LaunchArgsOptionValues>;
+	/** Non-option arguments, in order. */
+	positionals: string[];
+}
+
 const NEGATIVE_NUMBER = /^-\d|^-\.\d/;
 
-function isOptionToken(s)
-{
+function isOptionToken(s: string): boolean {
 	return s.length > 1 && s.startsWith("-") && !NEGATIVE_NUMBER.test(s);
 }
 
-function addOption(options, name, value)
-{
+function addOption(options: Map<string, LaunchArgsOptionValues>, name: string, value: string | null): void {
 	let values = options.get(name);
-	if (!values)
-	{
+	if (!values) {
 		values = [];
 		options.set(name, values);
 	}
 	values.push(value);
 }
 
-export function parseArgs(argList)
-{
+export function parseArgs(argList: Iterable<unknown>): ParsedArgs {
 	const args = Array.from(argList, a => String(a));
-	const options = new Map();
-	const positionals = [];
+	const options = new Map<string, LaunchArgsOptionValues>();
+	const positionals: string[] = [];
 
-	for (let i = 0; i < args.length; ++i)
-	{
-		const arg = args[i];
+	for (let i = 0; i < args.length; ++i) {
+		const arg = args[i]!;
 
-		if (arg === "--")
-		{
+		if (arg === "--") {
 			positionals.push(...args.slice(i + 1));
 			break;
 		}
 
-		if (!isOptionToken(arg))
-		{
+		if (!isOptionToken(arg)) {
 			positionals.push(arg);
 			continue;
 		}
@@ -57,28 +61,22 @@ export function parseArgs(argList)
 		const body = arg.slice(isLong ? 2 : 1);
 		const eq = body.indexOf("=");
 
-		if (eq >= 0)
-		{
+		if (eq >= 0) {
 			addOption(options, body.slice(0, eq), body.slice(eq + 1));
 			continue;
 		}
 
-		if (!isLong && body.length > 1)
-		{
+		if (!isLong && body.length > 1) {
 			// Bundled short flags: -abc
-			for (const ch of body)
-				addOption(options, ch, null);
+			for (const ch of body) addOption(options, ch, null);
 			continue;
 		}
 
 		const next = args[i + 1];
-		if (next !== undefined && next !== "--" && !isOptionToken(next))
-		{
+		if (next !== undefined && next !== "--" && !isOptionToken(next)) {
 			addOption(options, body, next);
 			++i;
-		}
-		else
-		{
+		} else {
 			addOption(options, body, null);
 		}
 	}
@@ -86,24 +84,23 @@ export function parseArgs(argList)
 	return { options, positionals };
 }
 
-// Accepts "--name", "-n" or "name" and returns the bare option name.
-export function normalizeName(name)
-{
+/** Accepts "--name", "-n" or "name" and returns the bare option name. */
+export function normalizeName(name: unknown): string {
 	return String(name).trim().replace(/^-+/, "");
 }
 
-// Converts a URL query string into argv-style tokens, for testing in browser preview.
-// "?level=3&fullscreen" -> ["--level=3", "--fullscreen"]. Keys that already start with
-// '-' are kept as written.
-export function queryStringToArgs(search)
-{
-	const result = [];
+/**
+ * Converts a URL query string into argv-style tokens, for testing in browser preview.
+ * "?level=3&fullscreen" -> ["--level=3", "--fullscreen"]. Keys that already start with
+ * '-' are kept as written.
+ */
+export function queryStringToArgs(search: string): string[] {
+	const result: string[] = [];
 	const params = new URLSearchParams(search);
 	const raw = String(search).replace(/^\?/, "").split("&").filter(s => s.length);
 	let idx = 0;
-	for (const [key, value] of params)
-	{
-		const hasEquals = (raw[idx++] || "").includes("=");
+	for (const [key, value] of params) {
+		const hasEquals = (raw[idx++] ?? "").includes("=");
 		const name = key.startsWith("-") ? key : "--" + key;
 		result.push(hasEquals ? `${name}=${value}` : name);
 	}

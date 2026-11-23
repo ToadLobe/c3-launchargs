@@ -4,8 +4,17 @@
 	"description": "Construct 3 wrapper extension plugin that exposes the process command line to projects.",
 	"type": "module",
 	"scripts": {
-		"build": "node scripts/build.js",
-		"test": "node --test tests/"
+		"build": "node scripts/build.ts",
+		"check": "tsc -p construct && tsc -p scripts && tsc -p tests",
+		"test": "node --test tests/*.test.ts"
+	},
+	"engines": {
+		"node": ">=22.18"
+	},
+	"devDependencies": {
+		"@types/node": "26.6.5",
+		"esbuild": "0.28.2",
+		"typescript": "5.9.3"
 	},
 	"license": "MIT"
 }

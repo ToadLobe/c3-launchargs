@@ -1,4 +1,5 @@
-
+// Editor side of the plugin. Plain JavaScript: Construct loads it as is, and only the runtime
+// (c3runtime/*.ts) is TypeScript.
 const SDK = globalThis.SDK;
 
 ////////////////////////////////////////////
@@ -9,8 +10,8 @@ const PLUGIN_ID = "PabloGalbraith_LaunchArgs";
 
 const PLUGIN_CATEGORY = "platform-specific";
 
-// Native binaries. Set built: true only once the file exists in this folder AND is listed
-// in addon.json "file-list"; keep the two in sync or the addon fails to load.
+// Native binaries. Set built: true only once the file exists in this folder. The build
+// fails if a built: true binary is missing, and warns if a present one is built: false.
 const WRAPPER_EXTENSIONS = [
 	{ filename: "LaunchArgs_x64.ext.dll",   platform: "windows-x64", built: false },
 	{ filename: "LaunchArgs_x86.ext.dll",   platform: "windows-x86", built: false },
@@ -34,6 +35,9 @@ const PLUGIN_CLASS = SDK.Plugins.PabloGalbraith_LaunchArgs = class PabloGalbrait
 		this._info.SetHelpUrl(globalThis.lang(".help-url"));
 		this._info.SetIsSingleGlobal(true);
 		this._info.SetRuntimeModuleMainScript("c3runtime/main.js");
+		// The runtime instance is the script interface; the build generates its definitions from c3runtime/instance.ts
+		this._info.SetScriptInterfaceNames({ instance: "ILaunchArgsInstance" });
+		this._info.SetTypeScriptDefinitionFiles(["c3runtime/ILaunchArgsInstance.d.ts"]);
 
 		SDK.Lang.PushContext(".properties");
 

@@ -1,7 +1,7 @@
 // Run with: npm test   (uses Node's built-in test runner, no dependencies)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseArgs, normalizeName, queryStringToArgs } from "../construct/c3runtime/argparse.js";
+import { parseArgs, normalizeName, queryStringToArgs } from "../construct/c3runtime/argparse.ts";
 
 test("empty input", () => {
 	const r = parseArgs([]);
