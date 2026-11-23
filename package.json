@@ -1,0 +1,10 @@
+{
+	"name": "c3-launchargs",
+	"private": true,
+	"description": "Construct 3 wrapper extension plugin that exposes the process command line to projects.",
+	"type": "module",
+	"scripts": {
+		"test": "node --test tests/"
+	},
+	"license": "MIT"
+}

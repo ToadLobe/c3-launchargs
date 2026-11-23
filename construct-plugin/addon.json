@@ -1,0 +1,37 @@
+{
+	"$schema": "../schemas/plugin.addon.schema.json",
+
+	"is-c3-addon": true,
+	"sdk-version": 2,
+	"min-construct-version": "r401",
+	"type": "plugin",
+	"name": "Launch Arguments",
+	"id": "PabloGalbraith_LaunchArgs",
+	"version": "1.0.0",
+	"author": "Pablo Galbraith",
+	"website": "https://github.com/",
+	"documentation": "https://github.com/",
+	"description": "Read the command-line arguments the exported app was launched with (Windows WebView2, macOS WKWebView, Linux CEF).",
+	"editor-scripts": [
+		"plugin.js",
+		"type.js",
+		"instance.js"
+	],
+	"file-list": [
+		"c3runtime/main.js",
+		"c3runtime/argparse.js",
+		"c3runtime/plugin.js",
+		"c3runtime/type.js",
+		"c3runtime/instance.js",
+		"c3runtime/conditions.js",
+		"c3runtime/actions.js",
+		"c3runtime/expressions.js",
+		"lang/en-US.json",
+		"aces.json",
+		"addon.json",
+		"icon.svg",
+		"instance.js",
+		"plugin.js",
+		"type.js"
+	]
+}

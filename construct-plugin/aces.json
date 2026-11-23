@@ -1,0 +1,68 @@
+{
+	"$schema": "../schemas/aces.schema.json",
+
+	"launch-args": {
+		"conditions": [
+			{
+				"id": "is-available",
+				"scriptName": "IsAvailable"
+			},
+			{
+				"id": "has-flag",
+				"scriptName": "HasFlag",
+				"params": [{ "id": "name", "type": "string" }]
+			},
+			{
+				"id": "has-arg",
+				"scriptName": "HasArg",
+				"params": [{ "id": "text", "type": "string" }]
+			}
+		],
+		"actions": [],
+		"expressions": [
+			{
+				"id": "arg-count",
+				"expressionName": "ArgCount",
+				"returnType": "number"
+			},
+			{
+				"id": "arg-at",
+				"expressionName": "ArgAt",
+				"returnType": "string",
+				"params": [{ "id": "index", "type": "number" }]
+			},
+			{
+				"id": "arg-value",
+				"expressionName": "ArgValue",
+				"returnType": "string",
+				"params": [{ "id": "name", "type": "string" }]
+			},
+			{
+				"id": "positional-count",
+				"expressionName": "PositionalCount",
+				"returnType": "number"
+			},
+			{
+				"id": "positional-at",
+				"expressionName": "PositionalAt",
+				"returnType": "string",
+				"params": [{ "id": "index", "type": "number" }]
+			},
+			{
+				"id": "raw-command-line",
+				"expressionName": "RawCommandLine",
+				"returnType": "string"
+			},
+			{
+				"id": "executable-path",
+				"expressionName": "ExecutablePath",
+				"returnType": "string"
+			},
+			{
+				"id": "source",
+				"expressionName": "Source",
+				"returnType": "string"
+			}
+		]
+	}
+}

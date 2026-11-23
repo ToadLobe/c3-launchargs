@@ -1,0 +1,98 @@
+{
+	"$schema": "../../schemas/plugin.lang.schema.json",
+
+	"languageTag": "en-US",
+	"fileDescription": "Strings for the Launch Arguments plugin.",
+	"text": {
+		"plugins": {
+			"pablogalbraith_launchargs": {
+				"name": "Launch Arguments",
+				"description": "Read the command-line arguments the exported app was launched with.",
+				"help-url": "https://github.com/",
+				"properties": {
+					"url-query-fallback": {
+						"name": "URL query fallback",
+						"desc": "When not running in a supported desktop export (e.g. browser preview), read arguments from the page URL query string, e.g. ?level=3&fullscreen."
+					}
+				},
+				"aceCategories": {
+					"launch-args": "Launch arguments"
+				},
+				"conditions": {
+					"is-available": {
+						"list-name": "Is available",
+						"display-text": "Launch arguments available",
+						"description": "True if running in a supported desktop export and the native extension loaded."
+					},
+					"has-flag": {
+						"list-name": "Has flag",
+						"display-text": "Has flag [i]{0}[/i]",
+						"description": "True if the named option was passed, with or without a value. Accepts \"--name\", \"-n\" or \"name\".",
+						"params": {
+							"name": {
+								"name": "Name",
+								"desc": "The option name, e.g. \"--fullscreen\"."
+							}
+						}
+					},
+					"has-arg": {
+						"list-name": "Has argument",
+						"display-text": "Has argument [i]{0}[/i]",
+						"description": "True if any argument exactly matches the given text (case-sensitive, unparsed).",
+						"params": {
+							"text": {
+								"name": "Text",
+								"desc": "The exact argument text to look for."
+							}
+						}
+					}
+				},
+				"actions": {
+				},
+				"expressions": {
+					"arg-count": {
+						"description": "Number of arguments, not counting the executable.",
+						"translated-name": "ArgCount"
+					},
+					"arg-at": {
+						"description": "The raw argument at a zero-based index, or empty string if out of range.",
+						"translated-name": "ArgAt",
+						"params": {
+							"index": { "name": "Index", "desc": "Zero-based argument index." }
+						}
+					},
+					"arg-value": {
+						"description": "The value of a named option (--name=value or --name value). Returns the last value if repeated, or empty string if absent or a bare flag.",
+						"translated-name": "ArgValue",
+						"params": {
+							"name": { "name": "Name", "desc": "The option name, e.g. \"--level\"." }
+						}
+					},
+					"positional-count": {
+						"description": "Number of positional (non-option) arguments.",
+						"translated-name": "PositionalCount"
+					},
+					"positional-at": {
+						"description": "The positional argument at a zero-based index, or empty string if out of range.",
+						"translated-name": "PositionalAt",
+						"params": {
+							"index": { "name": "Index", "desc": "Zero-based positional index." }
+						}
+					},
+					"raw-command-line": {
+						"description": "The full command line as a single string.",
+						"translated-name": "RawCommandLine"
+					},
+					"executable-path": {
+						"description": "The path of the launched executable, as reported by the OS.",
+						"translated-name": "ExecutablePath"
+					},
+					"source": {
+						"description": "Where the arguments came from: \"wrapper\", \"url\" or \"none\".",
+						"translated-name": "Source"
+					}
+				}
+			}
+		}
+	}
+}

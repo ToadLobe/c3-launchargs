@@ -1,0 +1,13 @@
+.DS_Store
+node_modules/
+dist/
+build/
+extension/.vs/
+extension/x64/
+extension/x86/
+extension/ARM64/
+extension/Debug/
+extension/Release/
+*.user
+xcuserdata/
+DerivedData/
