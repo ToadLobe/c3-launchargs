@@ -4,15 +4,9 @@ dist/
 build/
 extension/.vs/
 extension/x64/
-extension/x86/
 extension/ARM64/
 extension/Debug/
 extension/Release/
 *.user
-xcuserdata/
-DerivedData/
-extension/Win32/
-extension/bin/
-extension/Win32/
 extension/bin/
 extension/WrapperExtension/

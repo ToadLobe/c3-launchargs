@@ -31,8 +31,4 @@ C3.Plugins.PabloGalbraith_LaunchArgs.Exps = {
 	ExecutablePath(this: SDKInstanceClass) {
 		return this.executablePath;
 	},
-
-	Source(this: SDKInstanceClass) {
-		return this.source;
-	},
 };

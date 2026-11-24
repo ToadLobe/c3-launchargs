@@ -1,12 +1,9 @@
-import { chromiumParseOrder, dropHostSwitches, normalizeName, type LaunchArgsOptionValues, parseArgs, type ParsedArgs, queryStringToArgs } from "./argparse.ts";
+import { chromiumParseOrder, dropHostSwitches, normalizeName, type LaunchArgsOptionValues, parseArgs, type ParsedArgs } from "./argparse.ts";
 
 const C3 = globalThis.C3;
 
 // Must match RegisterComponentId() in extension/WrapperExtension.cpp.
 const COMPONENT_ID = "pablogalbraith-launchargs";
-
-/** Where the arguments came from: the native wrapper extension, the page URL query (browser preview), or nowhere. */
-type LaunchArgsSource = "wrapper" | "url" | "none";
 
 /**
  * The plugin's single global instance, which is also its script interface: every public member here is callable from
@@ -18,12 +15,10 @@ type LaunchArgsSource = "wrapper" | "url" | "none";
  */
 class ILaunchArgsInstance extends globalThis.ISDKInstanceBase {
 	private readonly wrapperAvailable: boolean;
-	private readonly useUrlFallback: boolean;
 	private argList: readonly string[] = [];
 	private parsed: ParsedArgs = parseArgs([]);
 	private raw = "";
 	private exe = "";
-	private from: LaunchArgsSource = "none";
 
 	public constructor() {
 		super({ wrapperComponentId: COMPONENT_ID });
@@ -32,12 +27,7 @@ class ILaunchArgsInstance extends globalThis.ISDKInstanceBase {
 		// check availability before sending anything.
 		this.wrapperAvailable = this._isWrapperExtensionAvailable();
 
-		// Property 0: URL query fallback (plugin.js)
-		const properties = this._getInitProperties();
-		this.useUrlFallback = properties.length > 0 ? !!properties[0] : true;
-
 		if (this.wrapperAvailable) this.runtime.sdk.addLoadPromise(this._fetchFromWrapper());
-		else this._loadFallback();
 	}
 
 	// MARK: Script interface
@@ -45,11 +35,6 @@ class ILaunchArgsInstance extends globalThis.ISDKInstanceBase {
 	/** Whether the native wrapper extension loaded, i.e. this is a supported desktop export. */
 	public get isAvailable(): boolean {
 		return this.wrapperAvailable;
-	}
-
-	/** Where the arguments came from: `"wrapper"`, `"url"` (browser preview fallback) or `"none"`. */
-	public get source(): LaunchArgsSource {
-		return this.from;
 	}
 
 	/** The raw arguments, not counting the executable. */
@@ -99,13 +84,6 @@ class ILaunchArgsInstance extends globalThis.ISDKInstanceBase {
 
 	// MARK: Runtime
 
-	public override _saveToJson(): JSONValue {
-		// Launch arguments are not part of the game state.
-		return null;
-	}
-
-	public override _loadFromJson(_o: JSONValue): void {}
-
 	private async _fetchFromWrapper(): Promise<void> {
 		// Response shape (see WrapperExtension::OnGetArgs): only string/number/bool values
 		// can cross the bridge, so the array is flattened to argc + arg0..argN-1.
@@ -119,45 +97,16 @@ class ILaunchArgsInstance extends globalThis.ISDKInstanceBase {
 		// Linux CEF only: the list is Chromium's reordered command line plus the host's own
 		// switches, and "titleArgs" is the launched list before those were added (argparse.ts).
 		const titleArgs = result["titleArgs"];
-		if (typeof titleArgs === "string") {
-			const kept = dropHostSwitches(args, titleArgs);
-			if (kept) args = kept;
-			this._setArgs(args, "wrapper", chromiumParseOrder(args));
-			this.raw = kept ? this.exe + titleArgs : String(result["raw"] ?? args.join(" "));
-		} else {
-			this._setArgs(args, "wrapper");
-			this.raw = String(result["raw"] ?? args.join(" "));
-		}
-	}
+		const kept = typeof titleArgs === "string" ? dropHostSwitches(args, titleArgs) : null;
+		if (kept) args = kept;
+		this.raw = kept ? this.exe + titleArgs : String(result["raw"] ?? "");
 
-	private _loadFallback(): void {
-		if (!this.useUrlFallback) return;
-
-		// TODO: verify in browser preview. In worker mode globalThis.location is the worker
-		// script's URL, which has no query string, so this may only work in DOM mode.
-		// If so, fetch the page URL via a DOM-side handler instead.
-		let search = "";
-		try {
-			search = globalThis.location?.search ?? "";
-		} catch {
-			// ignore
-		}
-
-		const args = queryStringToArgs(search);
-		if (args.length) {
-			this._setArgs(args, "url");
-			this.raw = args.join(" ");
-		}
-	}
-
-	private _setArgs(args: string[], source: LaunchArgsSource, parseInput: string[] = args): void {
 		this.argList = Object.freeze(args);
-		this.from = source;
-		this.parsed = parseArgs(parseInput);
+		this.parsed = parseArgs(typeof titleArgs === "string" ? chromiumParseOrder(args) : args);
 		Object.freeze(this.parsed.positionals);
 	}
 }
 
 C3.Plugins.PabloGalbraith_LaunchArgs.Instance = ILaunchArgsInstance;
 
-export type { ILaunchArgsInstance as SDKInstanceClass, LaunchArgsSource };
+export type { ILaunchArgsInstance as SDKInstanceClass };

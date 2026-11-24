@@ -89,24 +89,6 @@ export function normalizeName(name: unknown): string {
 	return String(name).trim().replace(/^-+/, "");
 }
 
-/**
- * Converts a URL query string into argv-style tokens, for testing in browser preview.
- * "?level=3&fullscreen" -> ["--level=3", "--fullscreen"]. Keys that already start with
- * '-' are kept as written.
- */
-export function queryStringToArgs(search: string): string[] {
-	const result: string[] = [];
-	const params = new URLSearchParams(search);
-	const raw = String(search).replace(/^\?/, "").split("&").filter(s => s.length);
-	let idx = 0;
-	for (const [key, value] of params) {
-		const hasEquals = (raw[idx++] ?? "").includes("=");
-		const name = key.startsWith("-") ? key : "--" + key;
-		result.push(hasEquals ? `${name}=${value}` : name);
-	}
-	return result;
-}
-
 // MARK: Linux CEF
 // The CEF browser process rewrites its argv in place to set its process title, before the
 // wrapper extension loads. The extension then reads CEF's global command line instead, which

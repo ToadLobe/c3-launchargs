@@ -1,7 +1,7 @@
 // Run with: npm test   (uses Node's built-in test runner, no dependencies)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseArgs, normalizeName, queryStringToArgs, dropHostSwitches, chromiumParseOrder } from "../construct/c3runtime/argparse.ts";
+import { parseArgs, normalizeName, dropHostSwitches, chromiumParseOrder } from "../construct/c3runtime/argparse.ts";
 
 test("empty input", () => {
 	const r = parseArgs([]);
@@ -90,13 +90,6 @@ test("normalizeName strips leading dashes and whitespace", () => {
 	assert.equal(normalizeName("-f"), "f");
 	assert.equal(normalizeName("fullscreen"), "fullscreen");
 	assert.equal(normalizeName("  --x "), "x");
-});
-
-test("queryStringToArgs converts a URL query into argv form", () => {
-	assert.deepEqual(queryStringToArgs("?level=3&fullscreen&--name=Bob%20Smith&-v"),
-		["--level=3", "--fullscreen", "--name=Bob Smith", "-v"]);
-	assert.deepEqual(queryStringToArgs(""), []);
-	assert.deepEqual(queryStringToArgs("?"), []);
 });
 
 // Linux CEF: the reported list is Chromium's global command line (switches first, host

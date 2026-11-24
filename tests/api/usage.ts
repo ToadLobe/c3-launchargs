@@ -5,7 +5,6 @@ runOnStartup(async runtime => {
 		const launchArgs = runtime.objects.LaunchArguments.getFirstInstance()!;
 
 		const available: boolean = launchArgs.isAvailable;
-		const source: LaunchArgsSource = launchArgs.source;
 		const args: readonly string[] = launchArgs.args;
 		const positionals: readonly string[] = launchArgs.positionals;
 		const names: string[] = launchArgs.optionNames;
@@ -21,9 +20,9 @@ runOnStartup(async runtime => {
 		const uid: number = launchArgs.uid;
 
 		// Read-only from scripts
-		// @ts-expect-error source has no setter
-		launchArgs.source = "url";
+		// @ts-expect-error isAvailable has no setter
+		launchArgs.isAvailable = false;
 
-		console.log(available, source, args, positionals, names, raw, exe, level, mods, uid);
+		console.log(available, args, positionals, names, raw, exe, level, mods, uid);
 	});
 });

@@ -9,18 +9,18 @@
 
 import * as esbuild from "esbuild";
 import { execFileSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
-export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SOURCE = join(ROOT, "construct");
 const RUNTIME = join(SOURCE, "c3runtime");
 const DIST = join(ROOT, "dist");
 /** A stand-in project script, compiled against the generated definitions to check the public API. */
 const API_FIXTURE = join(ROOT, "tests", "api");
-export const ADDON = join(DIST, "addon");
+const ADDON = join(DIST, "addon");
 
 /** Name of the generated definitions file, as plugin.js passes it to SetTypeScriptDefinitionFiles(). */
 const DEFINITIONS_FILE = "ILaunchArgsInstance.d.ts";
@@ -28,7 +28,7 @@ const DEFINITIONS_FILE = "ILaunchArgsInstance.d.ts";
 /** Declarations the generated definitions take from each source, in the order they are written. */
 const DECLARATIONS: [string, string[]][] = [
 	[join(RUNTIME, "argparse.ts"), ["LaunchArgsOptionValues"]],
-	[join(RUNTIME, "instance.ts"), ["LaunchArgsSource", "ILaunchArgsInstance"]],
+	[join(RUNTIME, "instance.ts"), ["ILaunchArgsInstance"]],
 ];
 
 /** Files that never belong in the addon. */
@@ -55,7 +55,7 @@ function toAddonPath(root: string, file: string): string {
 }
 
 /** Builds dist/addon/. Throws on type errors. */
-export async function build(): Promise<{ id: string; version: string }> {
+async function build(): Promise<{ id: string; version: string }> {
 	const definitions = generateDefinitions();
 
 	rmSync(ADDON, { recursive: true, force: true });
@@ -205,14 +205,11 @@ function globalDeclaration(node: ts.Statement): ts.Statement {
 	);
 }
 
-/** Warns when plugin.js's `built` flags disagree with the native binaries present. */
+/** Fails if a native binary plugin.js lists is missing. */
 function checkWrapperExtensions(files: string[]): void {
 	const plugin = readFileSync(join(SOURCE, "plugin.js"), "utf8");
-	const pattern = /filename:\s*"([^"]+)"[^}]*built:\s*(true|false)/g;
-	for (const [, filename, built] of plugin.matchAll(pattern)) {
-		const present = files.includes(filename!);
-		if (present && built === "false") console.warn(`warning: ${filename} is in the addon but plugin.js has built: false`);
-		if (!present && built === "true") throw new Error(`plugin.js has built: true for ${filename}, but the file is missing`);
+	for (const [, filename] of plugin.matchAll(/filename:\s*"([^"]+)"/g)) {
+		if (!files.includes(filename!)) throw new Error(`plugin.js lists ${filename}, but it isn't in construct/`);
 	}
 }
 
@@ -236,7 +233,6 @@ function pack(id: string, version: string): string {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-	if (!existsSync(join(SOURCE, "addon.json"))) throw new Error(`No addon.json in ${SOURCE}`);
 	const { id, version } = await build();
 	console.log(`Built ${relative(ROOT, pack(id, version))}`);
 }

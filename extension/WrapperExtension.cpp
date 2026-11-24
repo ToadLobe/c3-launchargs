@@ -52,7 +52,7 @@ WrapperExtension::WrapperExtension(IApplication* iApplication_)
 {
 	iApplication->SetSdkVersion(WRAPPER_EXT_SDK_VERSION);
 
-	// Must match COMPONENT_ID in construct/c3runtime/instance.js.
+	// Must match COMPONENT_ID in construct/c3runtime/instance.ts.
 	iApplication->RegisterComponentId("pablogalbraith-launchargs");
 }
 

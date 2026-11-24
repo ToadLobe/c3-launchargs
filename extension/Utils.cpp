@@ -3,30 +3,6 @@
 
 #ifdef _WIN32
 
-std::wstring Utf8ToWide(const std::string& utf8string)
-{
-	// Empty strings are equivalent
-	if (utf8string.empty())
-		return std::wstring();
-
-	// Request number of wchars needed to fit this string (note some arguments are int instead of size_t)
-	int wcharcount = MultiByteToWideChar(CP_UTF8, 0, utf8string.data(), (int)utf8string.size(), NULL, 0);
-
-	// Conversion failed or still empty: return empty string
-	if (wcharcount <= 0)
-		return std::wstring();
-
-	// Create a string to return and allocate memory for the content
-	std::wstring buffer;
-	buffer.resize(wcharcount);
-
-	// Do the conversion
-	MultiByteToWideChar(CP_UTF8, 0, utf8string.data(), (int)utf8string.size(), &(buffer.front()), wcharcount);
-
-	// Return converted string
-	return buffer;
-}
-
 std::string WideToUtf8(const std::wstring& widestring)
 {
 	// Empty strings are equivalent
