@@ -9,7 +9,7 @@
 	"id": "PabloGalbraith_LaunchArgs",
 	"version": "1.0.0",
 	"author": "Pablo Galbraith",
-	"website": "https://github.com/",
+	"website": "https://www.construct.net/en/make-games/addons/1737/launch-arguments",
 	"documentation": "https://github.com/ToadLobe/c3-launchargs",
 	"description": "Read the command-line arguments the exported app was launched with (Windows WebView2, macOS WKWebView, Linux CEF).",
 	"editor-scripts": [
