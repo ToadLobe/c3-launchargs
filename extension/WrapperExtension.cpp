@@ -258,26 +258,10 @@ static std::string ReadProcCmdline()
 void GetProcessArgs(std::vector<std::string>& args, std::string& raw)
 {
 	g_UsedCefArgs = GetCefArgs(args);
+	// No fallback: without CEF's command line there are no arguments, because
+	// /proc/self/cmdline is one space-joined string under CEF.
 	if (g_UsedCefArgs)
-	{
 		raw = JoinArgs(args);
-		return;
-	}
-
-	// Fallback: /proc/self/cmdline as argv, NUL-separated.
-	args.clear();
-	std::string data = ReadProcCmdline();
-	size_t start = 0;
-	while (start < data.size())
-	{
-		size_t end = data.find('\0', start);
-		if (end == std::string::npos)
-			end = data.size();
-		args.push_back(data.substr(start, end - start));
-		start = end + 1;
-	}
-
-	raw = JoinArgs(args);
 }
 
 // When the arguments came from CEF, gets the process title Chromium set at startup, after the
